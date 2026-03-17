@@ -123,30 +123,43 @@ Three new consumer blocks — each needs a unique `client_id` (existing consumer
 
 ### Numeric sensor consumer
 - `client_id = "telegraf-juicebox-numeric"`
+- `servers = ["tcp://mosquitto:1883"]` (Telegraf is inside the farm-sensors compose network)
 - Topics: `hmd/sensor/JuiceBox/+/state` and `hmd/number/JuiceBox/+/state`
 - `data_format = "value"`, `data_type = "float"`
-- `topic_tag = "topic"` — full topic stored as tag, then regex processors extract `entity`
-- Exclude `Status`, `Last-Debug-Message`, and `Act-as-Server` topics (string values cause silent parse-and-drop with log noise)
+- `topic_tag = "topic"` — full topic stored as tag, then regex processor extracts `entity`
+- `Act-as-Server` is a `switch` component and never matches these topic subscriptions
+- `Status` and `Last-Debug-Message` are `sensor` components and will be matched — exclude them via `tagdrop` after the regex processor (see below)
 - Tags: `device=juicebox`
 - Measurement: `juicebox`
 
 ### String consumer (Status only)
 - `client_id = "telegraf-juicebox-string"`
+- `servers = ["tcp://mosquitto:1883"]`
 - Topic: `hmd/sensor/JuiceBox/Status/state`
 - `data_format = "string"`
 - Tags: `device=juicebox`, `entity=Status`
 - Measurement: `juicebox`
 
-### Regex processor (tag extraction)
-Extract `entity` from topic path using regex on the `topic` tag:
+### Regex processor and tagdrop (tag extraction + exclusion)
+
+Extract `entity` tag from topic, then drop string-valued entities from the numeric measurement:
+
 ```toml
 [[processors.regex]]
+  namepass = ["juicebox"]
   [[processors.regex.tags]]
     key = "topic"
     pattern = "^hmd/[^/]+/JuiceBox/([^/]+)/state$"
     replacement = "${1}"
     result_key = "entity"
+
+[[processors.filter]]
+  namepass = ["juicebox"]
+  [processors.filter.tagdrop]
+    entity = ["Status", "Last-Debug-Message"]
 ```
+
+The `namepass = ["juicebox"]` guard prevents these processors from interfering with existing Hubitat/farm sensor metrics in the same Telegraf instance.
 
 ### Flux query pattern
 
