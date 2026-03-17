@@ -1,0 +1,22 @@
+services:
+  juicepassproxy:
+    build: .
+    container_name: juicepassproxy
+    restart: unless-stopped
+    ports:
+      - "8047:8047/udp"
+    environment:
+      - JUICEBOX_HOST=192.168.1.43
+      - IGNORE_ENELX=true
+      - MQTT_HOST=192.168.1.110
+      - MQTT_PORT=1883
+      - LOG_LOC=/log
+    volumes:
+      - ./config:/config
+      - ./log:/log
+
+# Note: farm-sensors stack must be running before starting this container.
+# JUICEBOX_HOST satisfies startup validation (juicepassproxy.py:401-405)
+# and enables telnet ID discovery on first run.
+# IGNORE_ENELX=true means JPP acts as server — no EnelX contact.
+# MQTT_HOST is the host LAN IP (not localhost; separate compose network).
