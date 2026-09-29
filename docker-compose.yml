@@ -3,20 +3,31 @@ services:
     build: .
     container_name: juicepassproxy
     restart: unless-stopped
-    ports:
-      - "8047:8047/udp"
+    # Host network, not a bridge: the proxy has to know the address the
+    # charger can reach (it tells the charger to send there), and the
+    # charger's server port is discovered at runtime, so a fixed port
+    # mapping was the wrong shape. This also lets MQTT_HOST be loopback.
+    network_mode: host
     environment:
       - JUICEBOX_HOST=192.168.1.43
-      - IGNORE_ENELX=true
-      - MQTT_HOST=192.168.1.110
+      # Point the charger at this proxy over telnet, and keep doing so.
+      # The charger's UDPC target was jbv1.emotorwerks.com:8042 (Voltie,
+      # who took over from Enel X), not the enelx host the old DNS
+      # override assumed — which is why nothing ever arrived.
+      - UPDATE_UDPC=true
+      - JPP_HOST=192.168.1.110
+      # Forward to the real server the charger names (discovered by
+      # telnet on first run, cached in /config). Flip to true to run as a
+      # standalone server with no cloud contact at all.
+      - IGNORE_ENELX=false
+      - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
       - LOG_LOC=/log
     volumes:
       - ./config:/config
       - ./log:/log
 
-# Note: farm-sensors stack must be running before starting this container.
-# JUICEBOX_HOST satisfies startup validation (juicepassproxy.py:401-405)
-# and enables telnet ID discovery on first run.
-# IGNORE_ENELX=true means JPP acts as server — no EnelX contact.
-# MQTT_HOST is the host LAN IP (not localhost; separate compose network).
+# Requires the farm-sensors Mosquitto on 127.0.0.1:1883. tokamak-mqtt-feeder
+# claims hmd/+/JuiceBox/+/state into farm_ev_charger (Tokamak ADR-023).
+# If /config/juicepassproxy.yaml holds a stale ENELX_* or LOCAL_IP, delete
+# it and restart so the proxy rediscovers both.
