@@ -19,7 +19,7 @@ services:
       # Forward to the real server the charger names (discovered by
       # telnet on first run, cached in /config). Flip to true to run as a
       # standalone server with no cloud contact at all.
-      - IGNORE_ENELX=false
+      - IGNORE_ENELX=true
       - MQTT_HOST=127.0.0.1
       - MQTT_PORT=1883
       - LOG_LOC=/log
